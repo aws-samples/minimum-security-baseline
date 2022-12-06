@@ -1,0 +1,138 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Stack raiz
+
+Parameters:
+  BucketPlantillas:
+    Type: String
+    Description: Bucket S3 con las plantillas de cloudformation
+
+  AbreviaturaCuenta:
+    Type: String
+    Description: Abreviatura del nombre de la cuenta AWS en minusculas.
+    Default: ''
+
+  CorreoNotificacion:
+    Type: String
+    Description: Correo electronico para notificacion de eventos de seguridad
+    Default: ''
+
+  GuardDuty:
+    Type: String
+    Description: Habilita deteccion de amenazas mediante Amazon GuardDuty
+    AllowedValues: ['true','false']
+    Default: 'true'
+
+  Macie:
+    Type: String
+    Description: Habilita deteccion de datos sensibles en buckets de S3 mediante Amazon Macie
+    AllowedValues: ['true','false']
+    Default: 'true'
+
+  SecurityHub:
+    Type: String
+    Description: Habilita visualizacion centralizada de hallazgos de seguridad mediante AWS Security Hub
+    AllowedValues: ['true','false']
+    Default: 'true'
+
+  CISDashboard:
+    Type: String
+    Description: Habilita dashboard CloudWatch de alertas CIS
+    AllowedValues: ['true','false']
+    Default: 'true'
+
+Conditions:
+  EnableCISDashboardCondition: !Equals [!Ref CISDashboard, 'true']
+
+Resources:
+  Parametros:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters:
+        prefijo: !Ref AbreviaturaCuenta
+        correoseguridad: !Ref CorreoNotificacion
+      TemplateURL: !Join 
+        - ""
+        - - 'https://'
+          - !Ref BucketPlantillas
+          - '.s3.amazonaws.com/'
+          - 'plantilla-parametros.yml'
+      TimeoutInMinutes: 10
+
+  Llaves:
+    Type: AWS::CloudFormation::Stack
+    Properties: 
+      TemplateURL: !Join
+        - ""
+        - - 'https://'
+          - !Ref BucketPlantillas
+          - '.s3.amazonaws.com/'
+          - 'plantilla-llaves.yml'      
+      TimeoutInMinutes: 20
+    DependsOn: Parametros
+  
+  Buckets:
+    Type: AWS::CloudFormation::Stack
+    Properties: 
+      TemplateURL: !Join
+        - ""
+        - - 'https://'
+          - !Ref BucketPlantillas
+          - '.s3.amazonaws.com/'
+          - 'plantilla-buckets-seguridad.yml'      
+      TimeoutInMinutes: 20
+    DependsOn: Llaves
+
+  Seguridad:
+    Type: AWS::CloudFormation::Stack
+    Properties:     
+      Parameters:
+        EnableGuardDuty: !Ref GuardDuty
+        EnableMacie: !Ref Macie
+        EnableSecurityHub: !Ref SecurityHub  
+      TemplateURL: !Join
+       - ""
+       - - 'https://'
+         - !Ref BucketPlantillas
+         - '.s3.amazonaws.com/'
+         - 'plantilla-seguridad.yml'      
+      TimeoutInMinutes: 20
+    DependsOn: Buckets
+
+  Notificaciones:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Join
+        - ""
+        - - 'https://'
+          - !Ref BucketPlantillas
+          - '.s3.amazonaws.com/'
+          - 'plantilla-notificaciones.yml'      
+      TimeoutInMinutes: 20
+    DependsOn: Seguridad
+
+  AlertasCIS:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Join
+        - ""
+        - - 'https://'
+          - !Ref BucketPlantillas
+          - '.s3.amazonaws.com/'
+          - 'plantilla-cis-alerts.yml'      
+      TimeoutInMinutes: 20
+    DependsOn: Notificaciones
+
+  DashboardCIS:
+    Condition: EnableCISDashboardCondition
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Join
+        - ""
+        - - 'https://'
+          - !Ref BucketPlantillas
+          - '.s3.amazonaws.com/'
+          - 'plantilla-cis-dashboard.yml'      
+      TimeoutInMinutes: 20
+    DependsOn: AlertasCIS
+
+
