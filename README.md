@@ -1,6 +1,7 @@
 ## Minimum security baseline
 
-This is a set of cloudformation templates that enables a minimum security baseline in a new AWS account that has no services enabled.
+This is a set of cloudformation templates that enables a minimum security baseline in a new AWS account that doesn't have Amazon GuardDuty, AWS Security Hub, Amazon Macie, Password Policy and Access Analyzer enabled.
+
 The solution is considered to be part of an integral security program.
 Instructions:
 - Create S3 bucket uin your AWS account
@@ -11,11 +12,13 @@ Instructions:
    - plantilla-buckets.yml
    - plantilla-seguridad.yml
    - plantilla-notificaciones.ymkl
+   - 
 In AWS Cloudformation launch template root-stack.yml and provide parameters:
   - bucket-plantillas - ths is the name of the s3 bucket where the cloudformation templates are stored
   - abreviaturacuenta - this is an abreviation for your AWS account identification, it is used as part of the name on some of the created resources
   - correonotificacion - email to which the guardduty events notifications are sent
 
+If you have Amazon GuardDuty, AWS Security Hub, Amazon Macie, Password Policy and Access Analyzer enabled, you should modify seguridad.yml to not enable a specific service or it will break.
 
 ## Security
 
