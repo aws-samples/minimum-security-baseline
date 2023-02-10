@@ -1,11 +1,13 @@
 AWSTemplateFormatVersion: 2010-09-09
+Description: Crea llaves de cifrado para CloudTrail, CloudWatch y SNS
 
-Description: Crea llaves de cifrado para CloudTrail y CloudWatch
-
+# =================
+# Recursos
+# =================
 Resources:
-# --------------- #
-# CLOUDTRAIL #
-# --------------- #
+# ==================================
+# Llave de encripcion para el trail 
+# ==================================
     LlaveCloudTrail:
       DeletionPolicy: Retain
       UpdateReplacePolicy: Retain
@@ -27,7 +29,7 @@ Resources:
                     - ':root'
               Action: 'kms:*'
               Resource: '*'
-            
+          
             - Sid: Permitir a CloudTrail encriptar con esta llave
               Effect: Allow
               Principal:
@@ -58,7 +60,10 @@ Resources:
                 Service: cloudtrail.amazonaws.com
               Action: 'kms:DescribeKey'
               Resource: '*'
-    
+
+# ==========================================
+# Alias de la llave de encripcion del trail
+# ==========================================
     AliasLlaveCloudTrail:
       Type: AWS::KMS::Alias
       Properties:
@@ -75,10 +80,9 @@ Resources:
         Value: !GetAtt LlaveCloudTrail.Arn
 
 
-# --------------- #
-# CLOUDWATCH LOGS #
-# --------------- #
-
+# ====================================================
+# Llave de encripcion del grupo de logs de CloudWatch
+# ====================================================
     LlaveCloudWatch:
       DeletionPolicy: Retain
       UpdateReplacePolicy: Retain
@@ -115,6 +119,9 @@ Resources:
                 ArnEquals:
                   'kms:EncryptionContext:aws:logs:arn': !Sub 'arn:aws:logs:*:${AWS::AccountId}:*'
 
+# ==================================================================
+# Alias de la llave de encripcion para el grupo de logs CloudWatch
+# ==================================================================
     AliasLlaveCloudWatch:
       Type: AWS::KMS::Alias
       Properties:
@@ -122,6 +129,9 @@ Resources:
         TargetKeyId:
           Ref: LlaveCloudWatch
 
+# ======================================================================
+# Parametro SSM con la llave de encripcion del grupo de logs CloudWatch
+# ======================================================================
     ParametrosLlaveCloudWatch:
       Type: AWS::SSM::Parameter
       Properties:
@@ -129,3 +139,65 @@ Resources:
         Description: Arn de llave para CloudWatchLogs
         Name: /seguridad/llaves/LlaveCloudWatch
         Value: !GetAtt LlaveCloudWatch.Arn
+
+# =====================================================
+# Llave de encripcion para el topico SNS de alerta CIS
+# =====================================================
+    LlaveTopicoAlertaCIS:
+      Type: AWS::KMS::Key
+      Properties:
+       Description: Llave de encripcion para topico SNS de Alertas CIS
+       EnableKeyRotation: true
+       MultiRegion: false
+       KeyPolicy:
+         Version: 2012-10-17
+         Id: PoliticaDeLlave-TopicoAlertaCIS
+         Statement:
+         - Sid: "Habilitar permisos en IAM"
+           Effect: Allow
+           Principal:
+             AWS:
+               - !Sub "arn:aws:iam::${AWS::AccountId}:root"
+           Action: "kms:*"
+           Resource: "*"
+         - Sid: Permitir encrypt/decrypt a SNS
+           Effect: Allow
+           Principal:
+             Service:
+                 - sns.amazonaws.com
+           Action:
+             - kms:GenerateDataKey
+             - kms:Decrypt
+           Resource: "*"
+         - Sid: Permitir encrypt/decrypt a alarmas CloudWatch
+           Effect: Allow
+           Principal:
+             Service:
+                 - cloudwatch.amazonaws.com
+           Action:
+             - kms:GenerateDataKey
+             - kms:Decrypt
+           Resource: "*"
+       Tags:
+         - Key: Name
+           Value: PoliticaLlave-TopicoAlertaCIS
+
+# ====================================================
+# Alias de la Llave para el Topico SNS de alertas CIS
+# ====================================================
+    AliasLlaveTopicoAlertaCIS:
+      Type: AWS::KMS::Alias
+      Properties:
+        AliasName: alias/LlaveTopicoAlertaCIS
+        TargetKeyId: !Ref LlaveTopicoAlertaCIS
+
+# =============================================================
+# Parametro SSM con la llave para el topico SNS de Alertas CIS
+# =============================================================
+    ParametrosLlaveTopicoAlertaCIS:
+      Type: AWS::SSM::Parameter
+      Properties:
+        Type: String
+        Description: Arn de llave para el topico SNS alerta CIS
+        Name: /seguridad/llaves/LlaveTopicoAlertaCIS
+        Value: !GetAtt LlaveTopicoAlertaCIS.Arn

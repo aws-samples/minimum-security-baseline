@@ -17,90 +17,135 @@ Parameters:
     Description: Nombre del grupo de logs de cloudwatch usado por el trail
     Default: /seguridad/cloudtrail/cloudwatchlogs
 
+  LlaveTopicoAlertaCIS:
+    Type: AWS::SSM::Parameter::Value<String>
+    Description: Nombre del grupo de logs de cloudwatch usado por el trail
+    Default: /seguridad/llaves/LlaveTopicoAlertaCIS
+
+
+# ==========
+# Recursos   
+# ==========
 Resources:
-# ==========================#
-# SNS Topic                 #
-# ==========================#
-  CISAlertsTopic:
+# ================================
+# Topico SNS para envio de alertas
+# ================================
+  TopicoAlertaCIS:
     Type: AWS::SNS::Topic
-    Properties: 
-      KmsMasterKeyId: alias/aws/sns
+    Properties:
+      TopicName: !Sub ${AccountPrefix}-sns-alertacis
+      KmsMasterKeyId: !Ref LlaveTopicoAlertaCIS
       Subscription: 
         - Endpoint: !Ref CorreoSeguridad
           Protocol: email
-      TopicName: !Sub ${AccountPrefix}-cisalerts-topic
+      Tags:
+        - Key: Name
+          Value: TopicoAlertasCIS
 
-# ===========#
-# CIS Alerts #
-# ===========#
+# =============================================
+# Politica del topico SNS para envio de alerta
+# =============================================
+  PoliticaTopicoAlertaCIS:
+    Type: AWS::SNS::TopicPolicy
+    Properties: 
+      Topics: 
+        - !Ref TopicoAlertaCIS
+      PolicyDocument: 
+        Version: 2012-10-17
+        Id: Politica-TopicoAlertaCIS
+        Statement:
+          - Sid: "Permitir publicar alarmas"
+            Effect: Allow
+            Principal:
+              Service: cloudwatch.amazonaws.com
+            Action: sns:Publish
+            Resource: !Ref TopicoAlertaCIS
+            Condition:
+              ArnLike: 
+                aws:SourceArn: 
+                  - !Sub "arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:CIS-3.1-LlamadasAPI-NoAutorizadas"
+                  - !Sub "arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:CIS-3.2-SesionConsola-NoMFA"
+                  - !Sub "arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:CIS-3.2-SesionConsola-NoMFA"
+                  - !Sub "arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:CIS-3.3-Actividad-UsuarioRaiz"
+                  - !Sub "arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:CIS-3.4-CambiosPoliticasIAM"
+                  - !Sub "arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:CIS-3.5-CambiosCloudTrail"
+                  - !Sub "arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:CIS-3.6-SesionConsola-Denegado"
+                  - !Sub "arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:CIS-3.7-EliminacionDeshabilitacionLlaves"
+                  - !Sub "arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:CIS-3.8-CambioPoliticasBucketS3"
+                  - !Sub "arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:CIS-3.9-CambiosAWSConfig"
+                  - !Sub "arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:CIS-3.10-CambiosSecurityGroups"
+                  - !Sub "arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:CIS-3.11-CambiosACLRed"
+                  - !Sub "arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:CIS-3.12-CambiosGatewayRed"
+                  - !Sub "arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:CIS-3.13-CambiosTablasRuteoVPC"
+                  - !Sub "arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:CIS-3.14-CambiosVPC"
 
-# ============================================#
-# 1.1 - Monitoring for unauthorized API calls #
-# ============================================#
+# ===================
+# ALARMAS y METRICAS 
+# ===================
 
-# ---------------------------#
-# CIS 3.1 - CloudWatch Alarm #
-# ---------------------------#
-  CloudWatchAlarmCIS31:
+# ===========================================
+# CIS 1.1/3.1 - Llamadas API no autorizadas
+# ===========================================
+  AlarmaCIS31:
     Type: 'AWS::CloudWatch::Alarm'
     Properties:
       AlarmName: CIS-3.1-LlamadasAPI-NoAutorizadas
       AlarmDescription: >-
-        Alarma CloudWatch ocurre con multiples intentos de acciones o accesos no autorizados.
-      MetricName: LLamadasAPI-NoAutorizadas
-      Namespace: LogMetrics
+        Alerta de llamadas API no autorizadas
+      MetricName: LlamadasAPI-NoAutorizadas
+      Namespace: MetricasCIS
       Statistic: Sum
       Period: '60'
       EvaluationPeriods: '1'
       Threshold: '1'
       ComparisonOperator: GreaterThanOrEqualToThreshold
       AlarmActions:
-        - Ref: CISAlertsTopic
+        - Ref: TopicoAlertaCIS
       TreatMissingData: notBreaching
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W28
+            reason: "No updates que requieran reemplazar este recurso. Para reemplazar utilizar nuevo nombre"  
 
-# ---------------------------#
-# CIS 3.1 - Metric filter    #
-# ---------------------------#
-  MetricFilterCIS31:
+  MetricaCIS31:
     Type: 'AWS::Logs::MetricFilter'
     Properties:
-      LogGroupName:
+      LogGroupName: 
         Ref: CloudWatchLogGroup
       FilterPattern: >-
         {($.errorCode="*UnauthorizedOperation") || ($.errorCode="AccessDenied*")}
       MetricTransformations:
         - MetricValue: '1'
-          MetricNamespace: LogMetrics
+          MetricNamespace: MetricasCIS
           MetricName: LlamadasAPI-NoAutorizadas
 
-# ================================================= #
-# 3.2 - Console sign-in without MFA                 #
-# ================================================= #
-
-# ---------------------------#
-# CIS 3.2 - CloudWatch Alarm #
-# ---------------------------#
-  CloudWatchAlarmCIS32:
+# =================================================
+# CIS 3.2 - Inicio en sesion de consola AWS sin MFA
+# =================================================
+  AlarmaCIS32:
     Type: 'AWS::CloudWatch::Alarm'
     Properties:
-      AlarmName: CIS-3.2-Consola-NoMFA
+      AlarmName: CIS-3.2-SesionConsola-NoMFA
       AlarmDescription: >-
-        Alarma CloudWatch ocurre si hay un login en la Consola Administracion AWS sin MFA.
-      MetricName: Consola-NoMFA
-      Namespace: LogMetrics
+        Alerta de inicio de sesion en consola AWS sin MFA
+      MetricName: SesionConsola-NoMFA
+      Namespace: MetricasCIS
       Statistic: Sum
       Period: '300'
       EvaluationPeriods: '1'
       Threshold: '1'
       ComparisonOperator: GreaterThanOrEqualToThreshold
       AlarmActions:
-        - Ref: CISAlertsTopic
+        - Ref: TopicoAlertaCIS
       TreatMissingData: notBreaching
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W28
+            reason: "No updates que requieran reemplazar este recurso. Para reemplazar utilizar nuevo nombre"  
 
-# ---------------------------#
-# CIS 3.2 - Metric filter    # 
-# ---------------------------#  
-  MetricFilterCIS32:
+  MetricaCIS32:
     Type: 'AWS::Logs::MetricFilter'
     Properties:
       LogGroupName:
@@ -109,36 +154,34 @@ Resources:
         {($.eventName="ConsoleLogin") && ($.additionalEventData.MFAUsed !="Yes")}
       MetricTransformations:
         - MetricValue: '1'
-          MetricNamespace: LogMetrics
-          MetricName: Consola-NoMFA
+          MetricNamespace: MetricasCIS
+          MetricName: SesionConsola-NoMFA
 
-# ===================================== #
-# 3.3 - Monitoring root activity        #
-# ===================================== #
-
-# ---------------------------#
-# CIS 3.3 - CloudWatch Alarm #
-# ---------------------------#
-  CloudWatchAlarmCIS33:
+# ==============================
+# CIS 3.3 - Uso del usuario raiz
+# ==============================
+  AlarmaCIS33:
     Type: 'AWS::CloudWatch::Alarm'
     Properties:
-      AlarmName: CIS-3.3-Actividad-root
-      AlarmDescription: Alarma CloudWatch ocurre si el usuario root entra a la cuenta.
-      MetricName: Actividad-root
-      Namespace: LogMetrics
+      AlarmName: CIS-3.3-Actividad-UsuarioRaiz
+      AlarmDescription: Alerta de actividad con usuario raiz
+      MetricName: Actividad-UsuarioRaiz
+      Namespace: MetricasCIS
       Statistic: Sum
       Period: '300'
       EvaluationPeriods: '1'
       Threshold: '1'
       ComparisonOperator: GreaterThanOrEqualToThreshold
       AlarmActions:
-        - Ref: CISAlertsTopic
+        - Ref: TopicoAlertaCIS
       TreatMissingData: notBreaching
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W28
+            reason: "No updates que requieran reemplazar este recurso. Para reemplazar utilizar nuevo nombre"  
 
-# ---------------------------#
-# CIS 3.3 - Metric filter    #
-# ---------------------------#
-  MetricFilterCIS33:
+  MetricaCIS33:
     Type: 'AWS::Logs::MetricFilter'
     Properties:
       LogGroupName:
@@ -147,39 +190,35 @@ Resources:
         {$.userIdentity.type="Root" && $.userIdentity.invokedBy NOT EXISTS && $.eventType !="AwsServiceEvent"}
       MetricTransformations:
         - MetricValue: '1'
-          MetricNamespace: LogMetrics
-          MetricName: Actividad-root
+          MetricNamespace: MetricasCIS
+          MetricName: Actividad-UsuarioRaiz
 
-# ============================ #
-# 3.4 - IAM Policy Changes     #
-# ============================ #
-
-# ---------------------------#
-# CIS 3.4 - CloudWatch Alarm #
-# ---------------------------#
-  CIS34CloudWatchAlarm:
+# ==================================
+# CIS 3.4 - Cambios en politicas IAM
+# ==================================
+  AlarmaCIS34:
     Type: 'AWS::CloudWatch::Alarm'
     Properties:
-      AlarmName:  CIS-3.4-CambiosPoliticaIAM
+      AlarmName:  CIS-3.4-CambiosPoliticasIAM
       AlarmDescription: >-
-        Alarma CloudWatch ocurre con cambios a politica IAM.
-        Los eventos incluyen la creacion/borrado/actualizacion asi como
-        attachar/desatachar politicas para usuarios o grupos IAM.
-      MetricName: CambiosPoliticaIAM
-      Namespace: LogMetrics
+        Alerta de cambios en politicas de IAM
+      MetricName: CambiosPoliticasIAM
+      Namespace: MetricasCIS
       Statistic: Sum
       Period: '300'
       EvaluationPeriods: '1'
       Threshold: '1'
       ComparisonOperator: GreaterThanOrEqualToThreshold
       AlarmActions:
-        - Ref: CISAlertsTopic
+        - Ref: TopicoAlertaCIS
       TreatMissingData: notBreaching
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W28
+            reason: "No updates que requieran reemplazar este recurso. Para reemplazar utilizar nuevo nombre"  
 
-# ---------------------------#
-# CIS 3.4 - Metric filter    #
-# ---------------------------#
-  CIS34MetricFilter:
+  MetricaCIS34:
     Type: 'AWS::Logs::MetricFilter'
     Properties:
       LogGroupName:
@@ -188,36 +227,34 @@ Resources:
         {($.eventName=DeleteGroupPolicy) || ($.eventName=DeleteRolePolicy) || ($.eventName=DeleteUserPolicy) || ($.eventName=PutGroupPolicy) || ($.eventName=PutRolePolicy) || ($.eventName=PutUserPolicy) || ($.eventName=CreatePolicy) || ($.eventName=DeletePolicy) || ($.eventName=CreatePolicyVersion) || ($.eventName=DeletePolicyVersion) || ($.eventName=AttachRolePolicy) || ($.eventName=DetachRolePolicy) || ($.eventName=AttachUserPolicy) || ($.eventName=DetachUserPolicy) || ($.eventName=AttachGroupPolicy) || ($.eventName=DetachGroupPolicy)}
       MetricTransformations:
         - MetricValue: '1'
-          MetricNamespace: LogMetrics
-          MetricName: CambiosPoliticaIAM
+          MetricNamespace: MetricasCIS
+          MetricName: CambiosPoliticasIAM
 
-# ========================================= #
-# 3.5 - CloudTrail Configuration Changes    #
-# ========================================= #
-
-# ---------------------------#
-# CIS 3.5 - CloudWatch Alarm #
-# ---------------------------#
-  CIS35CloudWatchAlarm:
+# ====================================================
+# CIS 3.5 - Cambio en configuracion de AWS CloudTrail
+# ====================================================
+  AlarmaCIS35:
     Type: 'AWS::CloudWatch::Alarm'
     Properties:
       AlarmName: CIS-3.5-CambiosCloudTrail
-      AlarmDescription: Alarma CloudWatch ocurre con cambios a CloudTrail.
+      AlarmDescription: Alerta cambios a configuracion CloudTrail
       MetricName: CambiosCloudTrail
-      Namespace: LogMetrics
+      Namespace: MetricasCIS
       Statistic: Sum
       Period: '300'
       EvaluationPeriods: '1'
       Threshold: '1'
       ComparisonOperator: GreaterThanOrEqualToThreshold
       AlarmActions:
-        - Ref: CISAlertsTopic
+        - Ref: TopicoAlertaCIS
       TreatMissingData: notBreaching
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W28
+            reason: "No updates que requieran reemplazar este recurso. Para reemplazar utilizar nuevo nombre"  
 
-# ---------------------------#
-# CIS 3.5 - Metric filter    #
-# ---------------------------#
-  CIS35MetricFilter:
+  MetricaCIS35:
     Type: 'AWS::Logs::MetricFilter'
     Properties:
       LogGroupName:
@@ -226,38 +263,35 @@ Resources:
         {($.eventName=CreateTrail) || ($.eventName=UpdateTrail) || ($.eventName=DeleteTrail) || ($.eventName=StartLogging) || ($.eventName=StopLogging)}
       MetricTransformations:
         - MetricValue: '1'
-          MetricNamespace: LogMetrics
+          MetricNamespace: MetricasCIS
           MetricName: CambiosCloudTrail
 
-# ==================================================== #
-# 3.6 AWS Management Console Authentication Failures   #
-# ==================================================== #
-
-# ---------------------------#
-# CIS 3.6 - CloudWatch Alarm #
-# ---------------------------#
-  CIS36CloudWatchAlarm:
+# =============================================
+# CIS 3.6 Inicio de sesion en consola denegado
+# =============================================
+  AlarmaCIS36:
     Type: 'AWS::CloudWatch::Alarm'
     Properties:
-      AlarmName: CIS-3.6-FallaAutenticacionConsola
+      AlarmName: CIS-3.6-SesionConsola-Denegado
       AlarmDescription: >-
-        Alarma CloudWatch ocurre con ingresos fallidos a la Consola de Administracion AWS
-        authentication failures.
-      MetricName: IngresoFallidoConsolaAWS
-      Namespace: LogMetrics
+        Alerta de inicio de sesion en consola denegado
+      MetricName: SesionConsola-Denegado
+      Namespace: MetricasCIS
       Statistic: Sum
       Period: '300'
       EvaluationPeriods: '1'
       Threshold: '3'
       ComparisonOperator: GreaterThanOrEqualToThreshold
       AlarmActions:
-        - Ref: CISAlertsTopic
+        - Ref: TopicoAlertaCIS
       TreatMissingData: notBreaching
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W28
+            reason: "No updates que requieran reemplazar este recurso. Para reemplazar utilizar nuevo nombre"  
 
-# ---------------------------#
-# CIS 3.6 - Metric filter    #
-# ---------------------------#
-  CIS36MetricFilter:
+  MetricaCIS36:
     Type: 'AWS::Logs::MetricFilter'
     Properties:
       LogGroupName:
@@ -266,37 +300,35 @@ Resources:
         {($.eventName=ConsoleLogin) && ($.errorMessage="Failed authentication")}
       MetricTransformations:
         - MetricValue: '1'
-          MetricNamespace: LogMetrics
-          MetricName: IngresoFallidoConsolaAWS
+          MetricNamespace: MetricasCIS
+          MetricName: SesionConsola-Denegado
 
-# ============================================================ #
-# 3.7 Disabling or scheduled deletion of customer created CMKs #
-# ============================================================ #
-
-# ---------------------------#
-# CIS 3.7 - CloudWatch Alarm #
-# ---------------------------#
-  CIS37CloudWatchAlarm:
+# ==============================================================
+# CIS 3.7 Llaves KMS deshabilitadas o marcadas para eliminacion 
+# ==============================================================  
+  AlarmaCIS37:
     Type: 'AWS::CloudWatch::Alarm'
     Properties:
-      AlarmName: CIS-3.7-EliminacionDeshabilitacionLlavesKMS
+      AlarmName: CIS-3.7-EliminacionDeshabilitacionLlaves
       AlarmDescription: >-
-        Alarma CloudWatch ocurre si CMKs se deshabilitan o se agendan para eliminacion.
-      MetricName: EliminacionLlavesKMSCliente
-      Namespace: LogMetrics
+        Alerta de llaves deshabilitadas o marcadas para eliminacion
+      MetricName: EliminacionDeshabilitacionLlaves
+      Namespace: MetricasCIS
       Statistic: Sum
       Period: '300'
       EvaluationPeriods: '1'
       Threshold: '1'
       ComparisonOperator: GreaterThanOrEqualToThreshold
       AlarmActions:
-        - Ref: CISAlertsTopic
+        - Ref: TopicoAlertaCIS
       TreatMissingData: notBreaching
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W28
+            reason: "No updates que requieran reemplazar este recurso. Para reemplazar utilizar nuevo nombre"  
 
-# ---------------------------#
-# CIS 3.7 - Metric filter    #
-# ---------------------------#
-  CIS37MetricFilter:
+  MetricaCIS37:
     Type: 'AWS::Logs::MetricFilter'
     Properties:
       LogGroupName:
@@ -305,36 +337,34 @@ Resources:
         {($.eventSource=kms.amazonaws.com) && (($.eventName=DisableKey) || ($.eventName=ScheduleKeyDeletion))}
       MetricTransformations:
         - MetricValue: '1'
-          MetricNamespace: LogMetrics
-          MetricName: EliminacionLlavesKMSCliente
+          MetricNamespace: MetricasCIS
+          MetricName: EliminacionDeshabilitacionLlaves
 
-# ================================== #
-# 3.8 S3 Bucket Policy Changes       #
-# ================================== #
-
-# ---------------------------#
-# CIS 3.8 - CloudWatch Alarm #
-# ---------------------------#
-  CIS38CloudWatchAlarm:
+# ==========================================
+# CIS 3.8 Cambios en politicas de bucket S3 
+# ========================================== 
+  AlarmaCIS38:
     Type: 'AWS::CloudWatch::Alarm'
     Properties:
-      AlarmName: CIS-3.8-CambiosPoliticaS3
-      AlarmDescription: Alarma CloudWatch ocurre con cambios a bucket S3.
-      MetricName: CambioPoliticaS3
-      Namespace: LogMetrics
+      AlarmName: CIS-3.8-CambioPoliticasBucketS3
+      AlarmDescription: Alerta de cambios a politicas en buckets s3
+      MetricName: CambioPoliticasBucketS3
+      Namespace: MetricasCIS
       Statistic: Sum
       Period: '300'
       EvaluationPeriods: '1'
       Threshold: '1'
       ComparisonOperator: GreaterThanOrEqualToThreshold
       AlarmActions:
-        - Ref: CISAlertsTopic
+        - Ref: TopicoAlertaCIS
       TreatMissingData: notBreaching
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W28
+            reason: "No updates que requieran reemplazar este recurso. Para reemplazar utilizar nuevo nombre"  
 
-# ---------------------------#
-# CIS 3.8 - Metric filter    #
-# ---------------------------#
-  CIS38MetricFilter:
+  MetricaCIS38:
     Type: 'AWS::Logs::MetricFilter'
     Properties:
       LogGroupName:
@@ -343,36 +373,34 @@ Resources:
         {($.eventSource=s3.amazonaws.com) && (($.eventName=PutBucketAcl) || ($.eventName=PutBucketPolicy) || ($.eventName=PutBucketCors) || ($.eventName=PutBucketLifecycle) || ($.eventName=PutBucketReplication) || ($.eventName=DeleteBucketPolicy) || ($.eventName=DeleteBucketCors) || ($.eventName=DeleteBucketLifecycle) || ($.eventName=DeleteBucketReplication))}
       MetricTransformations:
         - MetricValue: '1'
-          MetricNamespace: LogMetrics
-          MetricName: CambioPoliticaS3
+          MetricNamespace: MetricasCIS
+          MetricName: CambioPoliticasBucketS3
 
-# ======================================== #
-# 3.9 AWS Config Configuration Changes     #
-# ======================================== #
-
-# ---------------------------#
-# CIS 3.9 - CloudWatch Alarm #
-# ---------------------------#
-  CIS39CloudWatchAlarm:
+# ===============================================
+# CIS 3.9 Cambios en configuracion de AWS Config 
+# ===============================================
+  AlarmaCIS39:
     Type: 'AWS::CloudWatch::Alarm'
     Properties:
       AlarmName: CIS-3.9-CambiosAWSConfig
-      AlarmDescription: Alarma CloudWatch ocurre con cambios a AWS Config.
+      AlarmDescription: Alerta de cambios a AWS Config
       MetricName: CambiosAWSConfig
-      Namespace: LogMetrics
+      Namespace: MetricasCIS
       Statistic: Sum
       Period: '300'
       EvaluationPeriods: '1'
       Threshold: '1'
       ComparisonOperator: GreaterThanOrEqualToThreshold
       AlarmActions:
-        - Ref: CISAlertsTopic
+        - Ref: TopicoAlertaCIS
       TreatMissingData: notBreaching
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W28
+            reason: "No updates que requieran reemplazar este recurso. Para reemplazar utilizar nuevo nombre"  
 
-# ---------------------------#
-# CIS 3.9 - Metric filter    #
-# ---------------------------#
-  CIS39MetricFilter:
+  MetricaCIS39:
     Type: 'AWS::Logs::MetricFilter'
     Properties:
       LogGroupName:
@@ -381,37 +409,35 @@ Resources:
         {($.eventSource=config.amazonaws.com) && (($.eventName=StopConfigurationRecorder) || ($.eventName=DeleteDeliveryChannel) || ($.eventName=PutDeliveryChannel) || ($.eventName=PutConfigurationRecorder))}
       MetricTransformations:
         - MetricValue: '1'
-          MetricNamespace: LogMetrics
+          MetricNamespace: MetricasCIS
           MetricName: CambiosAWSConfig
 
-# ======================================== #
-# 3.10 Security group Changes Changes      #
-# ======================================== #
-
-# --------------------------- #
-# CIS 3.10 - CloudWatch Alarm #
-# --------------------------- #
-  CIS310CloudWatchAlarm:
+# ===================================
+# CIS 3.10 Cambios en Security groups 
+# ===================================
+  AlarmaCIS310:
     Type: 'AWS::CloudWatch::Alarm'
     Properties:
-      AlarmName: CIS-3.10-CambiosSecurityGroup
+      AlarmName: CIS-3.10-CambiosSecurityGroups
       AlarmDescription: >-
-        Alarma CloudWatch ocurre con cambios a Security Groups.
+        Alerta de cambios a Security Groups
       MetricName: CambiosSecurityGroups
-      Namespace: LogMetrics
+      Namespace: MetricasCIS
       Statistic: Sum
       Period: '300'
       EvaluationPeriods: '1'
       Threshold: '1'
       ComparisonOperator: GreaterThanOrEqualToThreshold
       AlarmActions:
-        - Ref: CISAlertsTopic
+        - Ref: TopicoAlertaCIS
       TreatMissingData: notBreaching
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W28
+            reason: "No updates que requieran reemplazar este recurso. Para reemplazar utilizar nuevo nombre"  
 
-# --------------------------- #
-# CIS 3.10 - Metric Filter    #
-# --------------------------- #
-  CIS310MetricFilter:
+  MetricaCIS310:
     Type: 'AWS::Logs::MetricFilter'
     Properties:
       LogGroupName:
@@ -420,36 +446,34 @@ Resources:
         {($.eventName=AuthorizeSecurityGroupIngress) || ($.eventName=AuthorizeSecurityGroupEgress) || ($.eventName=RevokeSecurityGroupIngress) || ($.eventName=RevokeSecurityGroupEgress) || ($.eventName=CreateSecurityGroup) || ($.eventName=DeleteSecurityGroup)}
       MetricTransformations:
         - MetricValue: '1'
-          MetricNamespace: LogMetrics
+          MetricNamespace: MetricasCIS
           MetricName: CambiosSecurityGroups
 
-# ======================================== #
-# 3.11 AWS Config Configuration Changes    #
-# ======================================== #
-
-# --------------------------- #
-# CIS 3.11 - CloudWatch Alarm #
-# --------------------------- #
-  CIS311CloudWatchAlarm:
+# ============================================================================
+# CIS 3.11 Cambios en configuracion de lista de control de acceso a red (NACL)
+# ============================================================================
+  AlarmaCIS311:
     Type: 'AWS::CloudWatch::Alarm'
     Properties:
-      AlarmName: CIS-3.11-CambiosNetworkACL
-      AlarmDescription: Alarma CloudWatch ocurre con cambios a Network ACLs.
-      MetricName: CambiosNetworkAcl
-      Namespace: LogMetrics
+      AlarmName: CIS-3.11-CambiosACLRed
+      AlarmDescription: Alerta de cambios a listas de control de acceso a red
+      MetricName: CambiosACLRed
+      Namespace: MetricasCIS
       Statistic: Sum
       Period: '300'
       EvaluationPeriods: '1'
       Threshold: '1'
       ComparisonOperator: GreaterThanOrEqualToThreshold
       AlarmActions:
-        - Ref: CISAlertsTopic
+        - Ref: TopicoAlertaCIS
       TreatMissingData: notBreaching
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W28
+            reason: "No updates que requieran reemplazar este recurso. Para reemplazar utilizar nuevo nombre"  
 
-# ---------------------------#
-# CIS 3.11 - Metric filter    #
-# ---------------------------#
-  CIS311MetricFilter:
+  MetricaCIS311:
     Type: 'AWS::Logs::MetricFilter'
     Properties:
       LogGroupName:
@@ -458,37 +482,35 @@ Resources:
         {($.eventName=CreateNetworkAcl) || ($.eventName=CreateNetworkAclEntry) || ($.eventName=DeleteNetworkAcl) || ($.eventName=DeleteNetworkAclEntry) || ($.eventName=ReplaceNetworkAclEntry) || ($.eventName=ReplaceNetworkAclAssociation)}
       MetricTransformations:
         - MetricValue: '1'
-          MetricNamespace: LogMetrics
-          MetricName: CambiosNetworkAcl
+          MetricNamespace: MetricasCIS
+          MetricName: CambiosACLRed
 
-# =============================== #
-# 3.12 Network Gateway Changes    #
-# =============================== #
-
-# --------------------------- #
-# CIS 3.12 - CloudWatch Alarm #
-# --------------------------- #
-  CIS312CloudWatchAlarm:
+# ========================================================
+# CIS 3.12 Cambios en puertas de salida (gateways) de red 
+# ========================================================
+  AlarmaCIS312:
     Type: 'AWS::CloudWatch::Alarm'
     Properties:
-      AlarmName: CIS-3.12-CambiosNetworkGateway
+      AlarmName: CIS-3.12-CambiosGatewayRed
       AlarmDescription: >-
-        Alarma CloudWatch ocurre con cambios a Customer o Internet Gateway.
-      MetricName: CambiosNetworkGateway
-      Namespace: LogMetrics
+        Alerta de cambios a Customer o Internet Gateway
+      MetricName: CambiosGatewayRed
+      Namespace: MetricasCIS
       Statistic: Sum
       Period: '300'
       EvaluationPeriods: '1'
       Threshold: '1'
       ComparisonOperator: GreaterThanOrEqualToThreshold
       AlarmActions:
-        - Ref: CISAlertsTopic
+        - Ref: TopicoAlertaCIS
       TreatMissingData: notBreaching
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W28
+            reason: "No updates que requieran reemplazar este recurso. Para reemplazar utilizar nuevo nombre"  
 
-# ---------------------------#
-# CIS 3.12 - Metric filter    #
-# ---------------------------#
-  CIS312MetricFilter:
+  MetricaCIS312:
     Type: 'AWS::Logs::MetricFilter'
     Properties:
       LogGroupName:
@@ -497,37 +519,35 @@ Resources:
         {($.eventName=CreateCustomerGateway) || ($.eventName=DeleteCustomerGateway) || ($.eventName=AttachInternetGateway) || ($.eventName=CreateInternetGateway) || ($.eventName=DeleteInternetGateway) || ($.eventName=DetachInternetGateway)}
       MetricTransformations:
         - MetricValue: '1'
-          MetricNamespace: LogMetrics
-          MetricName: CambiosNetworkGateway
+          MetricNamespace: MetricasCIS
+          MetricName: CambiosGatewayRed
 
-# ============================= #
-# 3.13 Route Table Changes      #
-# ============================= #
-
-# --------------------------- #
-# CIS 3.13 - CloudWatch Alarm #
-# --------------------------- #
-  CIS313CloudWatchAlarm:
+# ====================================
+# CIS 3.13 Cambios en tablas de ruteo
+# ====================================
+  AlarmaCIS313:
     Type: 'AWS::CloudWatch::Alarm'
     Properties:
-      AlarmName: CIS-3.13-CambiosVpcRouteTables
+      AlarmName: CIS-3.13-CambiosTablasRuteoVPC
       AlarmDescription: >-
-        Alarma CloudWatch ocurre con cambios a tabla de ruteo en VPCs.
-      MetricName: CambiosVpcRouteTable
-      Namespace: LogMetrics
+        Alerta de cambios a tablas de ruteo de VPC
+      MetricName: CambiosTablasRuteoVPC
+      Namespace: MetricasCIS
       Statistic: Sum
       Period: '300'
       EvaluationPeriods: '1'
       Threshold: '1'
       ComparisonOperator: GreaterThanOrEqualToThreshold
       AlarmActions:
-        - Ref: CISAlertsTopic
+        - Ref: TopicoAlertaCIS
       TreatMissingData: notBreaching
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W28
+            reason: "No updates que requieran reemplazar este recurso. Para reemplazar utilizar nuevo nombre"  
 
-# ---------------------------#
-# CIS 3.13 - Metric filter    #
-# ---------------------------#
-  CIS313MetricFilter:
+  MetricaCIS313:
     Type: 'AWS::Logs::MetricFilter'
     Properties:
       LogGroupName:
@@ -536,36 +556,34 @@ Resources:
         {($.eventName=CreateRoute) || ($.eventName=CreateRouteTable) || ($.eventName=ReplaceRoute) || ($.eventName=ReplaceRouteTableAssociation) || ($.eventName=DeleteRouteTable) || ($.eventName=DeleteRoute) || ($.eventName=DisassociateRouteTable)}
       MetricTransformations:
         - MetricValue: '1'
-          MetricNamespace: LogMetrics
-          MetricName: CambiosVpcRouteTable
+          MetricNamespace: MetricasCIS
+          MetricName: CambiosTablasRuteoVPC
 
-# ===================== #
-# 3.14 VPC Changes      #
-# ===================== #
-
-# --------------------------- #
-# CIS 3.14 - CloudWatch Alarm #
-# --------------------------- #
-  CIS314CloudWatchAlarm:
+# ======================== 
+# CIS 3.14 Cambios en VPC 
+# ======================== 
+  AlarmaCIS314:
     Type: 'AWS::CloudWatch::Alarm'
     Properties:
       AlarmName: CIS-3.14-CambiosVPC
-      AlarmDescription: Alarma CloudWatch ocurre con cambios a Vpc.
-      MetricName: CambiosVpc
-      Namespace: LogMetrics
+      AlarmDescription: Alerta de cambios en VPC
+      MetricName: CambiosVPC
+      Namespace: MetricasCIS
       Statistic: Sum
       Period: '300'
       EvaluationPeriods: '1'
       Threshold: '1'
       ComparisonOperator: GreaterThanOrEqualToThreshold
       AlarmActions:
-        - Ref: CISAlertsTopic
+        - Ref: TopicoAlertaCIS
       TreatMissingData: notBreaching
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W28
+            reason: "No updates que requieran reemplazar este recurso. Para reemplazar utilizar nuevo nombre"  
 
-# ---------------------------#
-# CIS 3.14 - Metric filter   #
-# ---------------------------#
-  CIS314MetricFilter:
+  MetricaCIS314:
     Type: 'AWS::Logs::MetricFilter'
     Properties:
       LogGroupName:
@@ -574,5 +592,5 @@ Resources:
         {($.eventName=CreateVpc) || ($.eventName=DeleteVpc) || ($.eventName=ModifyVpcAttribute) || ($.eventName=AcceptVpcPeeringConnection) || ($.eventName=CreateVpcPeeringConnection) || ($.eventName=DeleteVpcPeeringConnection) || ($.eventName=RejectVpcPeeringConnection) || ($.eventName=AttachClassicLinkVpc) || ($.eventName=DetachClassicLinkVpc) || ($.eventName=DisableVpcClassicLink) || ($.eventName=EnableVpcClassicLink)}
       MetricTransformations:
         - MetricValue: '1'
-          MetricNamespace: LogMetrics
-          MetricName: CambiosVpc
+          MetricNamespace: MetricasCIS
+          MetricName: CambiosVPC

@@ -43,7 +43,11 @@ Resources:
       OwnershipControls:
         Rules:
           - ObjectOwnership: BucketOwnerPreferred 
-
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W35
+            reason: "Este es el bucket de access logs"
 # --------------------------------------- #
 # S3 Bucket policy for Access Logs Bucket #
 # --------------------------------------- #
@@ -106,6 +110,9 @@ Resources:
         Tierings: 
         - AccessTier: ARCHIVE_ACCESS
           Days: 90
+      LoggingConfiguration:
+        DestinationBucketName: !Ref AccessLogsBucket
+        LogFilePrefix: configbucket      
       OwnershipControls:
         Rules:
           - ObjectOwnership: BucketOwnerPreferred 
