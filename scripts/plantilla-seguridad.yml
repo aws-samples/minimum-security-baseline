@@ -23,23 +23,23 @@ Metadata:
         - CloudTrailKey
         - CloudWatchLogsKey
 
-
 Parameters:
   EnableGuardDuty:
     Type: String
-    Description: Habilita deteccion de amenazas
+    Description: Habilitar deteccion de amenazas
     AllowedValues: ['true','false']
     Default: 'true'
 
   EnableMacie:
     Type: String
-    Description: Habilita deteccion de datos sensibles en buckets de S3 
+    Description: Habilitar deteccion de datos sensibles en buckets de S3 
     AllowedValues: ['true','false']
     Default: 'true'
 
   EnableSecurityHub:
     Type: String
-    Description: Habilita visualizacion centralizada de hallazgos de seguridad
+    Description: Habilitar visualizacion centralizada de hallazgos de seguridad
+    AllowedValues: ['true','false']
     Default: 'true'
 
   AccountPrefix:
@@ -73,7 +73,6 @@ Conditions:
   EnableMacieCondition: !Equals [!Ref EnableMacie, 'true']
 
 Resources:
-
 # ======================= #
 # AWS IAM Support Role    #
 # ======================= #
@@ -137,37 +136,36 @@ Resources:
                   - 'iam:UpdateAccountPasswordPolicy'
                   - 'iam:DeleteAccountPasswordPolicy'
                 Resource: '*'
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W11
+            reason: "El rol aplica sobre la politica de seguridad de IAM"
+
   IamPasswordPolicyLambda:
     Type: 'AWS::Lambda::Function'
     Properties:
+      ReservedConcurrentExecutions: 5
       Code:
         ZipFile: >-
           'use strict';
-
           const AWS = require('aws-sdk');
-
           const response = require('cfn-response');
-
           const iam = new AWS.IAM({apiVersion: '2010-05-08'});
-
           exports.handler = (event, context, cb) => {
-
-          console.log(`Invoke: ${JSON.stringify(event)}`);
-
-          const done = (err) => {
-            if (err) {
-              console.log(`Error: ${JSON.stringify(err)}`);
-              response.send(event, context, response.FAILED, {}, event.PhysicalResourceId);
-            } else {
-              response.send(event, context, response.SUCCESS, {}, event.PhysicalResourceId );
+            console.log(`Invoke: ${JSON.stringify(event)}`);
+            const done = (err) => {
+              if (err) {
+                console.log(`Error: ${JSON.stringify(err)}`);
+                response.send(event, context, response.FAILED, {}, event.PhysicalResourceId);
+              } else {
+                response.send(event, context, response.SUCCESS, {}, event.PhysicalResourceId );
             }
           };
-
           if (event.RequestType === 'Delete') {
             iam.deleteAccountPasswordPolicy({}, done);
-          } else if (event.RequestType === 'Create' || event.RequestType ===
-          'Update') {
-            let params = {
+          } else if (event.RequestType === 'Create' || event.RequestType === 'Update') {
+            const params = {
               AllowUsersToChangePassword: event.ResourceProperties.AllowUsersToChangePassword === 'true',
               HardExpiry: event.ResourceProperties.HardExpiry === 'true',
               MinimumPasswordLength: parseInt(event.ResourceProperties.MinimumPasswordLength, 10),
@@ -186,7 +184,6 @@ Resources:
           } else {
             cb(new Error(`unsupported RequestType: ${event.RequestType}`));
           }
-
           };
       Handler: index.handler
       MemorySize: 128
@@ -194,9 +191,13 @@ Resources:
         'Fn::GetAtt':
           - IamPasswordPolicyLambdaRole
           - Arn
-      Runtime: nodejs12.x
+      Runtime: nodejs16.x
       Timeout: 60
-
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W89
+            reason: "No se despliega en VPC para simplicidad"
 #===============================================================================#
 # AWS Config - Registro de recursos y reglas de evaluación de conformidad       #
 #===============================================================================#
@@ -210,7 +211,7 @@ Resources:
       RecordingGroup:
         AllSupported: true
         IncludeGlobalResourceTypes: true
-      Name: !Sub ${AccountPrefix}-default-crecord
+      Name: !Sub ${AccountPrefix}-awsconfig-recorder
       RoleARN: !GetAtt ConfigRole.Arn
 
 # ---------------------------- #
@@ -229,7 +230,8 @@ Resources:
   ConfigRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: !Sub ${AccountPrefix}-config-role 
+      RoleName: !Sub ${AccountPrefix}-awsconfig-role 
+      ManagedPolicyArns: ['arn:aws:iam::aws:policy/service-role/AWS_ConfigRole']
       AssumeRolePolicyDocument:
         Version: 2012-10-17
         Statement: 
@@ -237,25 +239,20 @@ Resources:
             Principal: 
               Service: config.amazonaws.com
             Action: sts:AssumeRole
-      ManagedPolicyArns: ['arn:aws:iam::aws:policy/service-role/AWS_ConfigRole']
       Policies:
-      - PolicyName: root
+      - PolicyName: AllowBucketAccess
         PolicyDocument:
           Version: '2012-10-17'
           Statement:
           - Effect: Allow
-            Action: s3:GetBucketAcl
-            Resource: !Join ['', ['arn:aws:s3:::', !Ref 'ConfigBucketName']]
-          - Effect: Allow
             Action: s3:PutObject
-            Resource: !Join ['', ['arn:aws:s3:::', !Ref 'ConfigBucketName', /AWSLogs/,
-                !Ref 'AWS::AccountId', /*]]
+            Resource: !Join ['', ['arn:aws:s3:::', !Ref 'ConfigBucketName', /AWSLogs/, !Ref 'AWS::AccountId', /*]]
             Condition:
               StringEquals:
                 s3:x-amz-acl: bucket-owner-full-control
           - Effect: Allow
-            Action: config:Put*
-            Resource: '*'
+            Action: s3:GetBucketAcl
+            Resource: !Join ['', ['arn:aws:s3:::', !Ref 'ConfigBucketName']]
     Metadata:
       cfn_nag:
         rules_to_suppress:
@@ -298,7 +295,7 @@ Resources:
     Condition: EnableSecurityHubCondition
     Type: AWS::SecurityHub::Hub
     DependsOn: DeliveryChannel
-  
+ 
 #===============================================================================#
 # AWS CloudTrail - Registro de llamadas API a la cuenta AWS                     #
 #===============================================================================#

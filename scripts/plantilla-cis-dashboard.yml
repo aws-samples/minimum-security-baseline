@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: 2010-09-09
-Description: Construye dashboard para CIS Alerts
+Description: Construye dashboard Cloudwatch de Alertas CIS utilizando Insight rules
 
 Parameters:  
   CloudWatchLogGroup:
@@ -8,17 +8,14 @@ Parameters:
     Default: /seguridad/cloudtrail/cloudwatchlogs
 
 Resources:
-# ================================================== #
-# ------ CIS Alerts and Insights dashboard   -----   #
-# ================================================== #
+# ==========================
+# Dashboard de alertas CIS 
+# ==========================
 
-# ============================================#
-# 3.1 - Monitoring for unauthorized API calls #
-# ============================================#
-# ----------------------------------#
-# CIS 3.1 - CloudTrail Insight rule #
-# ----------------------------------#
-  UnauthorizedAPICallsInsightRule:
+# ===========================================
+# CIS 1.1/3.1 - Llamadas API no autorizadas
+# ===========================================
+  ReglaInsightCIS31:
     Type: AWS::CloudWatch::InsightRule
     Properties:
       RuleBody: !Sub |
@@ -48,17 +45,13 @@ Resources:
                 "${CloudWatchLogGroup}"
             ]
         }
-      RuleName: CIS-Unauthorized-API-Activity
+      RuleName: CIS-3.1-LlamadasAPI-NoAutorizadas
       RuleState: ENABLED
 
-# ================================================= #
-# 3.2 - Console sign-in without MFA                 #
-# ================================================= #
-
-# ----------------------------------#
-# CIS 3.2 - CloudTrail Insight rule #
-# ----------------------------------#
-  ConsoleSigninWithoutMFAInsightRule:
+# =================================================
+# CIS 3.2 - Inicio en sesion de consola AWS sin MFA
+# =================================================
+  ReglaInsightCIS32:
     Type: AWS::CloudWatch::InsightRule
     Properties:
       RuleBody: !Sub |
@@ -93,17 +86,13 @@ Resources:
                 "${CloudWatchLogGroup}"
             ]
         }
-      RuleName: CIS-Console-Signin-Without-MFA
+      RuleName: CIS-3.2-SesionConsola-NoMFA
       RuleState: ENABLED
 
-# ===================================== #
-# 3.3 - Monitoring root activity        #
-# ===================================== #
-
-# ----------------------------------#
-# CIS 3.3 - CloudTrail Insight rule #
-# ----------------------------------#
-  RootActivityInsightRule:
+# ==============================
+# CIS 3.3 - Uso del usuario raiz
+# ==============================
+  ReglaInsightCIS33:
     Type: AWS::CloudWatch::InsightRule
     Properties:
       RuleBody: !Sub |
@@ -142,17 +131,18 @@ Resources:
                 "${CloudWatchLogGroup}"
             ]
         }
-      RuleName: CIS-Root-Activity
+      RuleName: CIS-3.3-Actividad-UsuarioRaiz
       RuleState: ENABLED
 
-# ========================================= #
-# 3.5 - CloudTrail Configuration Changes    #
-# ========================================= #
 
-# ----------------------------------#
-# CIS 3.5 - CloudTrail Insight rule #
-# ----------------------------------#
-  CloudTrailConfigurationChangesInsightRule:
+# ========================================
+# CIS34: No compatible con reglas Insights
+# ========================================
+
+# ====================================================
+# CIS 3.5 - Cambio en configuracion de AWS CloudTrail
+# ====================================================
+  ReglaInsightCIS35:
     Type: AWS::CloudWatch::InsightRule
     Properties:
       RuleBody: !Sub |
@@ -185,17 +175,13 @@ Resources:
                 "${CloudWatchLogGroup}"
             ]
         }
-      RuleName: CIS-CloudTrail-Configuration-Changes
+      RuleName: CIS-3.5-CambiosCloudTrail
       RuleState: ENABLED
 
-# ==================================================== #
-# 3.6 AWS Management Console Authentication Failures   #
-# ==================================================== #
-
-# ----------------------------------#
-# CIS 3.6 - CloudTrail Insight rule #
-# ----------------------------------#
-  ConsoleAuthenticationFailuresInsightRule:
+# =============================================
+# CIS 3.6 Inicio de sesion en consola denegado
+# =============================================
+  ReglaInsightCIS36:
     Type: AWS::CloudWatch::InsightRule
     Properties:
       RuleBody: !Sub |
@@ -230,17 +216,13 @@ Resources:
                 "${CloudWatchLogGroup}"
             ]
         }
-      RuleName: CIS-Console-Authentication-Failures
+      RuleName: CIS-3.6-SesionConsola-Denegado
       RuleState: ENABLED
 
-# ============================================================ #
-# 3.7 Disabling or scheduled deletion of customer created CMKs #
-# ============================================================ #
-
-# ----------------------------------#
-# CIS 3.7 - CloudTrail Insight rule #
-# ----------------------------------#
-  CMKInsightRule:
+# ==============================================================
+# CIS 3.7 Llaves KMS deshabilitadas o marcadas para eliminacion 
+# ============================================================== 
+  ReglaInsightCIS37:
     Type: AWS::CloudWatch::InsightRule
     Properties:
       RuleBody: !Sub |
@@ -276,17 +258,13 @@ Resources:
                 "${CloudWatchLogGroup}"
             ]
         }
-      RuleName: CIS-CMK-Deletion-Disabling
+      RuleName: CIS-3.7-EliminacionDeshabilitacionLlaves
       RuleState: ENABLED
 
-# ================================== #
-# 3.8 S3 Bucket Policy Changes       #
-# ================================== #
-
-# ----------------------------------#
-# CIS 3.8 - CloudTrail Insight rule #
-# ----------------------------------#
-  S3BucketPolicyChangesInsightRule:
+# ==========================================
+# CIS 3.8 Cambios en politicas de bucket S3 
+# ========================================== 
+  ReglaInsightCIS38:
     Type: AWS::CloudWatch::InsightRule
     Properties:
       RuleBody: !Sub |
@@ -329,17 +307,13 @@ Resources:
                 "${CloudWatchLogGroup}"
             ]
         }
-      RuleName: CIS-S3-Bucket-Policy-Changes
+      RuleName: CIS-3.8-CambioPoliticasBucketS3
       RuleState: ENABLED
 
-# ======================================== #
-# 3.9 AWS Config Configuration Changes     #
-# ======================================== #
-
-# ----------------------------------#
-# CIS 3.9 - CloudTrail Insight rule #
-# ----------------------------------#
-  AWSConfigConfigurationChangesInsightRule:
+# ===============================================
+# CIS 3.9 Cambios en configuracion de AWS Config 
+# ===============================================
+  ReglaInsightCIS39:
     Type: AWS::CloudWatch::InsightRule
     Properties:
       RuleBody: !Sub |
@@ -377,17 +351,13 @@ Resources:
                 "${CloudWatchLogGroup}"
             ]
         }
-      RuleName: CIS-AWS-Config-Configuration-Changes
+      RuleName: CIS-3.9-CambiosAWSConfig
       RuleState: ENABLED
 
-# ======================================== #
-# 3.10 Security group Changes Changes      #
-# ======================================== #
-
-# ----------------------------------#
-# CIS 3.10 - CloudTrail Insight rule #
-# ----------------------------------#
-  SecurityGroupChangesInsightRule:
+# ===================================
+# CIS 3.10 Cambios en Security groups 
+# ===================================
+  ReglaInsightCIS310:
     Type: AWS::CloudWatch::InsightRule
     Properties:
       RuleBody: !Sub |
@@ -421,17 +391,13 @@ Resources:
                 "${CloudWatchLogGroup}"
             ]
         }
-      RuleName: CIS-Security-Group-Changes
+      RuleName: CIS-3.10-CambiosSecurityGroups
       RuleState: ENABLED
 
-# ======================================== #
-# 3.11 AWS Config Configuration Changes    #
-# ======================================== #
-
-# ----------------------------------#
-# CIS 3.11 - CloudTrail Insight rule #
-# ----------------------------------#
-  NetworkACLChangesInsightRule:
+# ============================================================================
+# CIS 3.11 Cambios en configuracion de lista de control de acceso a red (NACL)
+# ============================================================================
+  ReglaInsightCIS311:
     Type: AWS::CloudWatch::InsightRule
     Properties:
       RuleBody: !Sub |
@@ -465,17 +431,13 @@ Resources:
                 "${CloudWatchLogGroup}"
             ]
         }
-      RuleName: CIS-Network-ACL-Changes
+      RuleName: CIS-3.11-CambiosACLRed
       RuleState: ENABLED
 
-# =============================== #
-# 3.12 Network Gateway Changes    #
-# =============================== #
-
-# ----------------------------------#
-# CIS 3.12 - CloudTrail Insight rule #
-# ----------------------------------#
-  NetworkGatewayChangesInsightRule:
+# ========================================================
+# CIS 3.12 Cambios en puertas de salida (gateways) de red 
+# ========================================================
+  ReglaInsightCIS312:
     Type: AWS::CloudWatch::InsightRule
     Properties:
       RuleBody: !Sub |
@@ -509,17 +471,13 @@ Resources:
                 "${CloudWatchLogGroup}"
             ]
         }
-      RuleName: CIS-Network-Gateway-Changes
+      RuleName: CIS-3.12-CambiosGatewayRed
       RuleState: ENABLED
 
-# ============================= #
-# 3.13 Route Table Changes      #
-# ============================= #
-
-# ----------------------------------#
-# CIS 3.13 - CloudTrail Insight rule #
-# ----------------------------------#
-  RouteTableChangesInsightRule:
+# ====================================
+# CIS 3.13 Cambios en tablas de ruteo
+# ====================================
+  ReglaInsightCIS313:
     Type: AWS::CloudWatch::InsightRule
     Properties:
       RuleBody: !Sub |
@@ -554,17 +512,13 @@ Resources:
                 "${CloudWatchLogGroup}"
             ]
         }
-      RuleName: CIS-Route-Table-Changes
+      RuleName: CIS-3.13-CambiosTablasRuteoVPC
       RuleState: ENABLED
 
-# ===================== #
-# 3.14 VPC Changes      #
-# ===================== #
-
-# ----------------------------------#
-# CIS 3.14 - CloudTrail Insight rule #
-# ----------------------------------#
-  VPCChangesInsightRule:
+# ======================== 
+# CIS 3.14 Cambios en VPC 
+# ======================== 
+  ReglaInsightCIS314:
     Type: AWS::CloudWatch::InsightRule
     Properties:
       RuleBody: !Sub |
@@ -601,7 +555,7 @@ Resources:
                 "${CloudWatchLogGroup}"
             ]
         }
-      RuleName: CIS-VPC-Changes
+      RuleName: CIS-3.14-CambiosVPC
       RuleState: ENABLED
 
 # ==========================#
@@ -614,19 +568,19 @@ Resources:
   CISDashboard:
     Type: AWS::CloudWatch::Dashboard
     DependsOn:
-      - UnauthorizedAPICallsInsightRule
-      - ConsoleSigninWithoutMFAInsightRule
-      - RootActivityInsightRule
-      - CloudTrailConfigurationChangesInsightRule
-      - ConsoleAuthenticationFailuresInsightRule
-      - CMKInsightRule
-      - S3BucketPolicyChangesInsightRule
-      - AWSConfigConfigurationChangesInsightRule
-      - SecurityGroupChangesInsightRule
-      - NetworkACLChangesInsightRule
-      - NetworkGatewayChangesInsightRule
-      - RouteTableChangesInsightRule
-      - VPCChangesInsightRule
+      - ReglaInsightCIS31
+      - ReglaInsightCIS32
+      - ReglaInsightCIS33
+      - ReglaInsightCIS35
+      - ReglaInsightCIS36
+      - ReglaInsightCIS37
+      - ReglaInsightCIS38
+      - ReglaInsightCIS39
+      - ReglaInsightCIS310
+      - ReglaInsightCIS311
+      - ReglaInsightCIS312
+      - ReglaInsightCIS313
+      - ReglaInsightCIS314
 
     Properties:
       DashboardBody: !Sub |
@@ -643,7 +597,7 @@ Resources:
                         "insightRule": {
                             "maxContributorCount": 10,
                             "orderBy": "Sum",
-                            "ruleName": "${UnauthorizedAPICallsInsightRule.RuleName}"
+                            "ruleName": "${ReglaInsightCIS31.RuleName}"
                         },
                         "stacked": false,
                         "view": "timeSeries",
@@ -656,7 +610,7 @@ Resources:
                             }
                         },
                         "region": "${AWS::Region}",
-                        "title": "Unauthorized API Calls",
+                        "title": "Llamadas API no autorizadas",
                         "legend": {
                             "position": "right"
                         }
@@ -673,7 +627,7 @@ Resources:
                         "insightRule": {
                             "maxContributorCount": 10,
                             "orderBy": "Sum",
-                            "ruleName": "${ConsoleSigninWithoutMFAInsightRule.RuleName}"
+                            "ruleName": "${ReglaInsightCIS32.RuleName}"
                         },
                         "stacked": false,
                         "view": "timeSeries",
@@ -686,7 +640,7 @@ Resources:
                             }
                         },
                           "region": "${AWS::Region}",
-                        "title": "Console Signin Without MFA",
+                        "title": "Sesion en consola sin MFA",
                         "legend": {
                             "position": "right"
                         }
@@ -703,7 +657,7 @@ Resources:
                         "insightRule": {
                             "maxContributorCount": 10,
                             "orderBy": "Sum",
-                            "ruleName": "${RootActivityInsightRule.RuleName}"
+                            "ruleName": "${ReglaInsightCIS33.RuleName}"
                         },
                         "stacked": false,
                         "view": "timeSeries",
@@ -716,7 +670,7 @@ Resources:
                             }
                         },
                           "region": "${AWS::Region}",
-                        "title": "Root Activity",
+                        "title": "Actividad de usuario raiz",
                         "legend": {
                             "position": "right"
                         }
@@ -733,7 +687,7 @@ Resources:
                         "insightRule": {
                             "maxContributorCount": 10,
                             "orderBy": "Sum",
-                            "ruleName": "${CloudTrailConfigurationChangesInsightRule.RuleName}"
+                            "ruleName": "${ReglaInsightCIS35.RuleName}"
                         },
                         "stacked": false,
                         "view": "timeSeries",
@@ -746,7 +700,7 @@ Resources:
                             }
                         },
                           "region": "${AWS::Region}",
-                        "title": "CloudTrail Configuration Changes",
+                        "title": "Cambios en configuracion de CloudTrail",
                         "legend": {
                             "position": "right"
                         }
@@ -763,7 +717,7 @@ Resources:
                         "insightRule": {
                             "maxContributorCount": 10,
                             "orderBy": "Sum",
-                            "ruleName": "${ConsoleAuthenticationFailuresInsightRule.RuleName}"
+                            "ruleName": "${ReglaInsightCIS36.RuleName}"
                         },
                         "stacked": false,
                         "view": "timeSeries",
@@ -776,7 +730,7 @@ Resources:
                             }
                         },
                           "region": "${AWS::Region}",
-                        "title": "Console Authentication Failures",
+                        "title": "Sesion en consola denegado",
                         "legend": {
                             "position": "right"
                         }
@@ -793,7 +747,7 @@ Resources:
                         "insightRule": {
                             "maxContributorCount": 10,
                             "orderBy": "Sum",
-                            "ruleName": "${CMKInsightRule.RuleName}"
+                            "ruleName": "${ReglaInsightCIS37.RuleName}"
                         },
                         "stacked": false,
                         "view": "timeSeries",
@@ -806,7 +760,7 @@ Resources:
                             }
                         },
                           "region": "${AWS::Region}",
-                        "title": "CMK Disabled or Deleted",
+                        "title": "Llave de encripcion eliminada o deshabilitada",
                         "legend": {
                             "position": "right"
                         }
@@ -823,7 +777,7 @@ Resources:
                         "insightRule": {
                             "maxContributorCount": 10,
                             "orderBy": "Sum",
-                            "ruleName": "${S3BucketPolicyChangesInsightRule.RuleName}"
+                            "ruleName": "${ReglaInsightCIS38.RuleName}"
                         },
                         "stacked": false,
                         "view": "timeSeries",
@@ -836,7 +790,7 @@ Resources:
                             }
                         },
                           "region": "${AWS::Region}",
-                        "title": "S3 Bucket Policy Changes",
+                        "title": "Cambio en politica de bucket s3",
                         "legend": {
                             "position": "right"
                         }
@@ -853,7 +807,7 @@ Resources:
                         "insightRule": {
                             "maxContributorCount": 10,
                             "orderBy": "Sum",
-                            "ruleName": "${AWSConfigConfigurationChangesInsightRule.RuleName}"
+                            "ruleName": "${ReglaInsightCIS39.RuleName}"
                         },
                         "stacked": false,
                         "view": "timeSeries",
@@ -866,7 +820,7 @@ Resources:
                             }
                         },
                           "region": "${AWS::Region}",
-                        "title": "AWS Config Configuration Changes",
+                        "title": "Cambio en configuracion de AWS Config",
                         "legend": {
                             "position": "right"
                         }
@@ -883,7 +837,7 @@ Resources:
                         "insightRule": {
                             "maxContributorCount": 10,
                             "orderBy": "Sum",
-                            "ruleName": "${SecurityGroupChangesInsightRule.RuleName}"
+                            "ruleName": "${ReglaInsightCIS310.RuleName}"
                         },
                         "stacked": false,
                         "view": "timeSeries",
@@ -896,7 +850,7 @@ Resources:
                             }
                         },
                           "region": "${AWS::Region}",
-                        "title": "Security Group Changes",
+                        "title": "Ccambio en security groups",
                         "legend": {
                             "position": "right"
                         }
@@ -913,7 +867,7 @@ Resources:
                         "insightRule": {
                             "maxContributorCount": 10,
                             "orderBy": "Sum",
-                            "ruleName": "${NetworkACLChangesInsightRule.RuleName}"
+                            "ruleName": "${ReglaInsightCIS311.RuleName}"
                         },
                         "stacked": false,
                         "view": "timeSeries",
@@ -926,7 +880,7 @@ Resources:
                             }
                         },
                           "region": "${AWS::Region}",
-                        "title": "Network ACL Changes",
+                        "title": "Cambio en ACL de red",
                         "legend": {
                             "position": "right"
                         }
@@ -943,7 +897,7 @@ Resources:
                         "insightRule": {
                             "maxContributorCount": 10,
                             "orderBy": "Sum",
-                            "ruleName": "${NetworkGatewayChangesInsightRule.RuleName}"
+                            "ruleName": "${ReglaInsightCIS312.RuleName}"
                         },
                         "stacked": false,
                         "view": "timeSeries",
@@ -956,7 +910,7 @@ Resources:
                             }
                         },
                           "region": "${AWS::Region}",
-                        "title": "Network Gateway Changes",
+                        "title": "Cambio en configuracion de gateway de red",
                         "legend": {
                             "position": "right"
                         }
@@ -973,7 +927,7 @@ Resources:
                         "insightRule": {
                             "maxContributorCount": 10,
                             "orderBy": "Sum",
-                            "ruleName": "${RouteTableChangesInsightRule.RuleName}"
+                            "ruleName": "${ReglaInsightCIS313.RuleName}"
                         },
                         "stacked": false,
                         "view": "timeSeries",
@@ -986,7 +940,7 @@ Resources:
                             }
                         },
                           "region": "${AWS::Region}",
-                        "title": "Route Table Changes",
+                        "title": "Cambio en tablas de ruteo",
                         "legend": {
                             "position": "right"
                         }
@@ -1003,7 +957,7 @@ Resources:
                         "insightRule": {
                             "maxContributorCount": 10,
                             "orderBy": "Sum",
-                            "ruleName": "${VPCChangesInsightRule.RuleName}"
+                            "ruleName": "${ReglaInsightCIS314.RuleName}"
                         },
                         "stacked": false,
                         "view": "timeSeries",
@@ -1016,7 +970,7 @@ Resources:
                             }
                         },
                           "region": "${AWS::Region}",
-                        "title": "VPC Changes",
+                        "title": "Cambio en VPC",
                         "legend": {
                             "position": "right"
                         }
@@ -1024,10 +978,10 @@ Resources:
                 }
             ]
          }
-      DashboardName: CIS-Monitoring-Dashboard
+      DashboardName: Dashboard-AlertaCIS
 
 Outputs:
   OutputDashboardURI:
-    Description: Link to the CloudWatch Dashboard
+    Description: Enlace al dashboard CloudWatch de Alerta CIS
     Value: !Sub 'https://console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#dashboards:name=${CISDashboard}'
 

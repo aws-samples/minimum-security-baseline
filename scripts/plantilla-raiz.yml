@@ -4,39 +4,39 @@ Description: Stack raiz
 Parameters:
   BucketPlantillas:
     Type: String
-    Description: S3 Bucket where templates are stored
+    Description: Bucket S3 con las plantillas de cloudformation
 
   AbreviaturaCuenta:
     Type: String
-    Description: Name of AWS account in lower case. No upper case or different characters are supported.
+    Description: Abreviatura del nombre de la cuenta AWS en minusculas.
     Default: ''
 
   CorreoNotificacion:
     Type: String
-    Description: Email to send security event notifications.
+    Description: Correo electronico para notificacion de eventos de seguridad
     Default: ''
 
   GuardDuty:
     Type: String
-    Description: Amazon GuardDuty threath detection enablement.
+    Description: Habilita deteccion de amenazas mediante Amazon GuardDuty
     AllowedValues: ['true','false']
     Default: 'true'
 
   Macie:
     Type: String
-    Description: Amazon Macie sensitive data detection enablement.
+    Description: Habilita deteccion de datos sensibles en buckets de S3 mediante Amazon Macie
     AllowedValues: ['true','false']
     Default: 'true'
 
   SecurityHub:
     Type: String
-    Description: AWS Security Hub findings centralization enablement. 
+    Description: Habilita visualizacion centralizada de hallazgos de seguridad mediante AWS Security Hub
     AllowedValues: ['true','false']
     Default: 'true'
 
   CISDashboard:
     Type: String
-    Description: CloudWatch dashboard with CIS alerts enablement.
+    Description: Habilita dashboard CloudWatch de alertas CIS
     AllowedValues: ['true','false']
     Default: 'true'
 
